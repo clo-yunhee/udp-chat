@@ -10,6 +10,8 @@ int main(int argc, char *argv[]) {
     const char *port;
     struct conn_data conn;
 
+    int s;
+
     // change the port on the command line
     port = (argc > 1) ? argv[1] : "30303";
 
@@ -21,31 +23,45 @@ int main(int argc, char *argv[]) {
     }
 
     // create the server addresses
-    int gai = get_server_addr(port, &conn.addr);
-    if (gai != 0) {
-        fprintf(stderr, "Could not create server address: %s\n", gai_strerror(gai));
+    if ((s = get_server_addr(port, &conn.addr)) != 0) {
+        fprintf(stderr, "Could not create server address: %s\n", gai_strerror(s));
         exit(EXIT_FAILURE);
     }
+    // check that we found at least one
+    if (&conn.addr == NULL) {
+        fprintf(stderr, "Could not find any server\n");
+        exit(EXIT_FAILURE);
+    }
+
     // register exit callback for addresses
     s_conn = &conn;
     atexit(exit_callback);
     
     // start the threads
-    if (start_send_thread(conn) == -1) {
-        perror("Could not start the send thread");
+    if ((s = start_send_thread(&conn)) != 0) {
+        fprintf(stderr, "Could not start the send thread: %s\n", strerror(s));
         exit(EXIT_FAILURE);
     }
-    if (start_recv_thread(conn) == -1) {
-        perror("Could not start the receive thread");
+    if ((s = start_recv_thread(&conn)) != 0) {
+        fprintf(stderr, "Could not start the receive thread: %s\n", strerror(s));
         exit(EXIT_FAILURE);
     }
+  
+    // the send thread never returns, it never ends, except when it exits.
+    // the recv thread can receive a kill message from the server,
+    // so we do have to join on it.
+    
+    // FIXME: temporary, until recv is implemented
+    pthread_join(thread_send, NULL);
 
-    // exit
     return EXIT_SUCCESS;
 }
 
 void exit_callback(void) {
-    if (release_connection(&conn) == -1) {
+    //pthread_cancel(thread_send);
+    //pthread_cancel(thread_recv);
+
+    if (release_connection(s_conn) == -1) {
         perror("Could not release connection");
         exit(EXIT_FAILURE);
     }

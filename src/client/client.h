@@ -42,14 +42,14 @@ int release_connection(struct conn_data *conn);
 /*
  * Threads for sending and receiving.
  */
-extern pthread_t thread_send, thread_receive;
+extern pthread_t thread_send, thread_recv;
 
 /*
  * Create the send / receive thread.
- * Returns -1 on error.
+ * Returns a nonzero value on error.
  */
-int start_send_thread(void);
-int start_recv_thread(void);
+int start_send_thread(struct conn_data *conn);
+int start_recv_thread(struct conn_data *conn);
 
 
 #endif // CLIENT_CLIENT_H
